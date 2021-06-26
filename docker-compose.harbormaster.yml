@@ -1,6 +1,8 @@
 services:
   server:
     command: bash -c "cd /state/; /code/bot.py"
+    ports:
+      - "27838:8000"
     volumes:
       - {{ HM_DATA_DIR }}:/state
   worker:
