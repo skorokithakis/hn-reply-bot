@@ -111,7 +111,7 @@ def set_webhook(url: str) -> None:
 @app.route(f"/webhook/{WEBHOOK_SECRET}/", methods=["GET", "POST"])
 def webhook():
     data = request.get_json()
-    if "message" not in data or "text" not in data["message"]:
+    if not data or "message" not in data or "text" not in data["message"]:
         return jsonify({})
 
     message_text = data["message"]["text"].strip()
