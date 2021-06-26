@@ -31,7 +31,7 @@ class Persistence:
         self._cur = self._con.cursor()
 
         self._cur.execute(
-            'CREATE TABLE IF NOT EXISTS "user_to_chat" ( "username" TEXT, "chat_id" INTEGER UNIQUE );'
+            'CREATE TABLE IF NOT EXISTS "user_to_chat" ( "username" TEXT COLLATE NOCASE, "chat_id" INTEGER UNIQUE );'
         )
         self._cur.execute(
             'CREATE TABLE IF NOT EXISTS "current_item" ( "id" INTEGER UNIQUE, "item" INTEGER );'
@@ -48,7 +48,8 @@ class Persistence:
     def get_chat_by_username(self, username: str) -> Optional[int]:
         """Get a user's chat ID by the monitored username."""
         self._cur.execute(
-            "SELECT chat_id FROM user_to_chat WHERE username = ?", [username]
+            "SELECT chat_id FROM user_to_chat WHERE username = ? COLLATE NOCASE",
+            [username],
         )
         result = self._cur.fetchone()
         return result[0] if result else None
