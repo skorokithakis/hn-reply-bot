@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import hashlib
-import json
+import html
 import os
 import re
 import sqlite3
@@ -24,6 +24,13 @@ TOKEN = os.getenv("TELEGRAM_TOKEN", "")
 WEBHOOK_SECRET = hashlib.sha256(TOKEN.encode()).hexdigest()[:10]
 
 print(f"Webhook URL: /webhook/{WEBHOOK_SECRET}/")
+
+
+def clean_text(text):
+    """Remove html tags from text."""
+    clean = re.sub("<.*?>", "", text)
+    clean = html.unescape(clean)
+    return clean
 
 
 class Persistence:
@@ -168,7 +175,7 @@ def work():
 
 The reply by {item['by']} says:
 
-{item_text}
+{clean_text(item_text)}
 
 https://news.ycombinator.com/item?id={current_item-1}""",
             )

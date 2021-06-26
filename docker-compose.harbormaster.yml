@@ -1,11 +1,11 @@
 services:
   server:
-    command: bash -c "cd /state/; /code/bot.py"
+    command: bash -c "cd /state/; /code/main.py"
     ports:
       - "27838:8000"
     volumes:
       - {{ HM_DATA_DIR }}:/state
   worker:
-    command: bash -c "cd /state/; /code/bot.py worker"
+    command: bash -c "cd /state/; /code/main.py worker"
     volumes:
       - {{ HM_DATA_DIR }}:/state

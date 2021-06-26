@@ -1,6 +1,6 @@
 services:
   server:
-    command: ./bot.py
+    command: ./main.py
     build: .
     volumes:
       - .:/code
@@ -9,7 +9,7 @@ services:
     environment:
       - TELEGRAM_TOKEN
   worker:
-    command: ./bot.py worker
+    command: ./main.py worker
     build: .
     volumes:
       - .:/code
