@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import hashlib
-import html
 import os
 import re
 import sqlite3
@@ -24,13 +23,6 @@ TOKEN = os.getenv("TELEGRAM_TOKEN", "")
 WEBHOOK_SECRET = hashlib.sha256(TOKEN.encode()).hexdigest()[:10]
 
 print(f"Webhook URL: /webhook/{WEBHOOK_SECRET}/")
-
-
-def clean_text(text: str) -> str:
-    """Remove html tags from text."""
-    clean = re.sub("<.*?>", "", text)
-    clean = html.unescape(clean)
-    return clean
 
 
 class Persistence:
@@ -99,6 +91,7 @@ def send_telegram_message(chat_id: int, message: str) -> None:
             data={
                 "chat_id": chat_id,
                 "text": message,
+                "parse_mode": "HTML",
             },
         )
     except Exception as e:
@@ -159,7 +152,7 @@ def notify_for_reply(
     username: str,
     text: str,
 ):
-    comment_text = clean_text(text.replace("<p>", "\n\n"))
+    comment_text = text.replace("<p>", "\n\n")
     send_telegram_message(
         chat_id,
         f"""You have a new reply to this comment: https://news.ycombinator.com/item?id={parent_id}
