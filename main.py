@@ -26,7 +26,7 @@ WEBHOOK_SECRET = hashlib.sha256(TOKEN.encode()).hexdigest()[:10]
 print(f"Webhook URL: /webhook/{WEBHOOK_SECRET}/")
 
 
-def clean_text(text):
+def clean_text(text: str) -> str:
     """Remove html tags from text."""
     clean = re.sub("<.*?>", "", text)
     clean = html.unescape(clean)
@@ -147,11 +147,57 @@ def webhook():
 # Worker section
 #
 def get_item(item_id: int) -> Optional[Dict[Any, Any]]:
+    """Return any HN item."""
     r = requests.get(f"https://hacker-news.firebaseio.com/v0/item/{item_id}.json")
     return r.json()
 
 
-def work():
+def notify_for_reply(
+    chat_id: int,
+    comment_id: int,
+    parent_id: int,
+    username: str,
+    text: str,
+):
+    comment_text = clean_text(text.replace("<p>", "\n\n"))
+    send_telegram_message(
+        chat_id,
+        f"""You have a new reply to this comment: https://news.ycombinator.com/item?id={parent_id}
+
+The reply by {username} says:
+
+{comment_text}
+
+https://news.ycombinator.com/item?id={comment_id}""",
+    )
+
+
+def process_comment(
+    item: Dict[Any, Any],
+    persistence: Persistence,
+) -> None:
+    """Process a comment."""
+    # Let's see whom they replied to.
+    parent_item = get_item(item["parent"])
+    if not parent_item:
+        return
+
+    # Check if the parent asked to be notified.
+    parent_username = parent_item["by"]
+    chat_id = persistence.get_chat_by_username(parent_username)
+    if not chat_id:
+        return
+
+    notify_for_reply(
+        chat_id,
+        comment_id=item["id"],
+        parent_id=item["parent"],
+        username=item["by"],
+        text=item["text"],
+    )
+
+
+def work() -> None:
     p = Persistence()
     max_item = requests.get("https://hacker-news.firebaseio.com/v0/maxitem.json").json()
     current_item = p.get_current_item()
@@ -159,26 +205,13 @@ def work():
     while current_item <= max_item:
         print(f"Getting {current_item}/{max_item}...")
         item = get_item(current_item)
+        pprint(item)
         current_item += 1
         if not item or item["type"] != "comment" or not item.get("text"):
             continue
 
-        pprint(item)
+        process_comment(item, p)
 
-        item_text = item["text"].replace("<p>", "\n\n")
-        parent_username = get_item(item["parent"])["by"]
-        if chat_id := p.get_chat_by_username(parent_username):
-            print("Reply found!")
-            send_telegram_message(
-                chat_id,
-                f"""You have a new reply to this comment: https://news.ycombinator.com/item?id={item['parent']}
-
-The reply by {item['by']} says:
-
-{clean_text(item_text)}
-
-https://news.ycombinator.com/item?id={current_item-1}""",
-            )
         p.set_current_item(current_item)
     print("Done.")
 
