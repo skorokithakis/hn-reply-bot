@@ -1,0 +1,9 @@
+services:
+  server:
+    command: bash -c "cd /state/; /code/bot.py"
+    volumes:
+      - {{ HM_DATA_DIR }}:/state
+  worker:
+    command: bash -c "cd /state/; /code/bot.py worker"
+    volumes:
+      - {{ HM_DATA_DIR }}:/state

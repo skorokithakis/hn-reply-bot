@@ -1,0 +1,17 @@
+services:
+  server:
+    command: ./bot.py
+    build: .
+    volumes:
+      - .:/code
+    ports:
+      - "8000:8000"
+    environment:
+      - TELEGRAM_TOKEN
+  worker:
+    command: ./bot.py worker
+    build: .
+    volumes:
+      - .:/code
+    environment:
+      - TELEGRAM_TOKEN
