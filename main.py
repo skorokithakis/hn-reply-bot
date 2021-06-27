@@ -213,7 +213,11 @@ def work() -> None:
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "worker":
         while True:
-            work()
+            try:
+                work()
+            except Exception as e:
+                print("There was an exception, will retry later:")
+                print(e)
             time.sleep(30)
     else:
         app.run("0.0.0.0", port=8000, debug=True)
