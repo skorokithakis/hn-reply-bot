@@ -77,7 +77,15 @@ class Persistence:
         """Get the last fetched item ID."""
         self._cur.execute("SELECT item FROM current_item WHERE id = 1")
         result = self._cur.fetchone()
-        return result[0] if result else 27637553
+        if not result:
+            # If there is no current item in the database, it means that this
+            # is a new installation. In that case, return the max item, so we
+            # don't try to fetch any old comments by default.
+            return requests.get(
+                "https://hacker-news.firebaseio.com/v0/maxitem.json"
+            ).json()
+        else:
+            return result[0]
 
 
 def send_telegram_message(chat_id: int, message: str) -> None:
