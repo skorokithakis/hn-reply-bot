@@ -81,9 +81,13 @@ class Persistence:
             # If there is no current item in the database, it means that this
             # is a new installation. In that case, return the max item, so we
             # don't try to fetch any old comments by default.
-            return requests.get(
+            max_item = requests.get(
                 "https://hacker-news.firebaseio.com/v0/maxitem.json"
             ).json()
+            # Save the max item as the current one so we don't go in an
+            # infinite loop.
+            self.set_current_item(max_item)
+            return max_item
         else:
             return result[0]
 
@@ -202,19 +206,18 @@ def process_comment(
 def work() -> None:
     p = Persistence()
     max_item = requests.get("https://hacker-news.firebaseio.com/v0/maxitem.json").json()
-    current_item = p.get_current_item()
+    next_item = p.get_current_item() + 1
     print(f"Max item is {max_item}.")
-    while current_item <= max_item:
-        print(f"Getting {current_item}/{max_item}...")
-        item = get_item(current_item)
-        pprint(item)
-        current_item += 1
+    while next_item <= max_item:
+        print(f"Getting {next_item}/{max_item} ({max_item-next_item} to go)...")
+        item = get_item(next_item)
         if not item or item["type"] != "comment" or not item.get("text"):
             continue
 
         process_comment(item, p)
 
-        p.set_current_item(current_item)
+        p.set_current_item(next_item)
+        next_item += 1
     print("Done.")
 
 
