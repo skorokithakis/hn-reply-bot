@@ -211,10 +211,8 @@ def work() -> None:
     while next_item <= max_item:
         print(f"Getting {next_item}/{max_item} ({max_item-next_item} to go)...")
         item = get_item(next_item)
-        if not item or item["type"] != "comment" or not item.get("text"):
-            continue
-
-        process_comment(item, p)
+        if item and item["type"] == "comment" and item.get("text"):
+            process_comment(item, p)
 
         p.set_current_item(next_item)
         next_item += 1
