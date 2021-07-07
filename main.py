@@ -190,7 +190,11 @@ def process_comment(
         return
 
     # Check if the parent asked to be notified.
-    parent_username = parent_item["by"]
+    parent_username = parent_item.get("by")
+    if not parent_username:
+        # The parent comment or story may have been deleted.
+        return
+
     chat_id = persistence.get_chat_by_username(parent_username)
     if not chat_id:
         return
