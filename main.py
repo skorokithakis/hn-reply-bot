@@ -5,6 +5,7 @@ import re
 import sqlite3
 import sys
 import time
+import traceback
 from pprint import pprint
 from typing import Any
 from typing import Dict
@@ -224,9 +225,9 @@ if __name__ == "__main__":
         while True:
             try:
                 work()
-            except Exception as e:
+            except Exception:
                 print("There was an exception, will retry later:")
-                print(e)
+                print(traceback.format_exc())
             time.sleep(30)
     else:
         app.run("0.0.0.0", port=8000, debug=True)
