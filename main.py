@@ -83,7 +83,7 @@ class Persistence:
             # is a new installation. In that case, return the max item, so we
             # don't try to fetch any old comments by default.
             max_item = requests.get(
-                "https://hacker-news.firebaseio.com/v0/maxitem.json"
+                "https://hacker-news.firebaseio.com/v0/maxitem.json", timeout=60
             ).json()
             # Save the max item as the current one so we don't go in an
             # infinite loop.
@@ -107,6 +107,7 @@ def send_telegram_message(chat_id: int, message: str) -> None:
                 "text": message,
                 "parse_mode": "HTML",
             },
+            timeout=60,
         )
     except Exception as e:
         pprint(e)
@@ -115,7 +116,9 @@ def send_telegram_message(chat_id: int, message: str) -> None:
 def set_webhook(url: str) -> None:
     """Call this function to set the webhook URL."""
     print("Setting webhook...")
-    r = requests.get(f"https://api.telegram.org/bot{TOKEN}/setWebhook?url={url}")
+    r = requests.get(
+        f"https://api.telegram.org/bot{TOKEN}/setWebhook?url={url}", timeout=60
+    )
     print(r.json())
 
 
