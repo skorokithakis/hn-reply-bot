@@ -172,13 +172,13 @@ def notify_for_reply(
     comment_text = text.replace("<p>", "\n\n")
     send_telegram_message(
         chat_id,
-        f"""You have a new reply to this comment: https://news.ycombinator.com/item?id={parent_id}
+        f"""You have a new reply:
 
 The reply by {username} says:
 
 {comment_text}
 
-https://news.ycombinator.com/item?id={comment_id}""",
+https://news.ycombinator.com/item?id={parent_id}""",
     )
 
 
