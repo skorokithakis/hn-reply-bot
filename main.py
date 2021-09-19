@@ -158,7 +158,9 @@ def webhook():
 #
 def get_item(item_id: int) -> Optional[Dict[Any, Any]]:
     """Return any HN item."""
-    r = requests.get(f"https://hacker-news.firebaseio.com/v0/item/{item_id}.json")
+    r = requests.get(
+        f"https://hacker-news.firebaseio.com/v0/item/{item_id}.json", timeout=30
+    )
     return r.json()
 
 
