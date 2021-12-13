@@ -27,6 +27,18 @@ print(f"Webhook URL: /webhook/{WEBHOOK_SECRET}/")
 
 
 class Persistence:
+    """
+    The main persistent storage class.
+
+    We currently use two tables: One which stores the last item ID seen (so we can
+    process updates for newer things), and one which maps a requested username to a chat
+    ID, so we can message the chat if we see the username replied to.
+
+    If a chat requests a different username, the old is deleted. If two users request to
+    monitor the same username, only one of them wins. This might be a bit of an issue if
+    more than three people ever use this.
+    """
+
     def __init__(self, filename: str = "state.sqlite3"):
         self._con = sqlite3.connect(filename)
         self._cur = self._con.cursor()
@@ -56,7 +68,12 @@ class Persistence:
         return result[0] if result else None
 
     def set_chat_by_username(self, username: str, chat_id: int) -> None:
-        """Set a user's chat ID for the monitored username."""
+        """
+        Set a user's chat ID for the monitored username.
+
+        If a chat ID already monitors a different username, the old username is
+        replaced.
+        """
         self._cur.execute(
             "INSERT INTO user_to_chat(username, chat_id) VALUES(?, ?)"
             " ON CONFLICT(chat_id) DO UPDATE SET username=?;",
