@@ -100,7 +100,8 @@ class Persistence:
             # is a new installation. In that case, return the max item, so we
             # don't try to fetch any old comments by default.
             max_item = requests.get(
-                "https://hacker-news.firebaseio.com/v0/maxitem.json", timeout=60
+                "https://hacker-news.firebaseio.com/v0/maxitem.json",
+                timeout=60,
             ).json()
             # Save the max item as the current one so we don't go in an
             # infinite loop.
@@ -134,7 +135,8 @@ def set_webhook(url: str) -> None:
     """Call this function to set the webhook URL."""
     print("Setting webhook...")
     r = requests.get(
-        f"https://api.telegram.org/bot{TOKEN}/setWebhook?url={url}", timeout=60
+        f"https://api.telegram.org/bot{TOKEN}/setWebhook?url={url}",
+        timeout=60,
     )
     print(r.json())
 
@@ -176,7 +178,8 @@ def webhook():
 def get_item(item_id: int) -> Optional[Dict[Any, Any]]:
     """Return any HN item."""
     r = requests.get(
-        f"https://hacker-news.firebaseio.com/v0/item/{item_id}.json", timeout=30
+        f"https://hacker-news.firebaseio.com/v0/item/{item_id}.json",
+        timeout=30,
     )
     return r.json()
 
@@ -232,7 +235,10 @@ def process_comment(
 
 def work() -> None:
     p = Persistence()
-    max_item = requests.get("https://hacker-news.firebaseio.com/v0/maxitem.json").json()
+    max_item = requests.get(
+        "https://hacker-news.firebaseio.com/v0/maxitem.json",
+        timeout=60,
+    ).json()
     next_item = p.get_current_item() + 1
     print(f"Max item is {max_item}.")
     while next_item <= max_item:
