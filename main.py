@@ -200,7 +200,9 @@ The reply by {username} says:
 
 {comment_text}
 
-https://news.ycombinator.com/item?id={parent_id}""",
+Comment: https://news.ycombinator.com/item?id={comment_id}
+
+Parent: https://news.ycombinator.com/item?id={parent_id}""",
     )
 
 
