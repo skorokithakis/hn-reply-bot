@@ -175,9 +175,9 @@ def webhook():
 #############
 # Worker section
 #
-def get_item(item_id: int) -> Optional[Dict[Any, Any]]:
+def get_item(item_id: int, session: requests.Session) -> Optional[Dict[Any, Any]]:
     """Return any HN item."""
-    r = requests.get(
+    r = session.get(
         f"https://hacker-news.firebaseio.com/v0/item/{item_id}.json",
         timeout=30,
     )
@@ -209,10 +209,11 @@ Parent: https://news.ycombinator.com/item?id={parent_id}""",
 def process_comment(
     item: Dict[Any, Any],
     persistence: Persistence,
+    session: requests.Session,
 ) -> None:
     """Process a comment."""
     # Let's see whom they replied to.
-    parent_item = get_item(item["parent"])
+    parent_item = get_item(item["parent"], session)
     if not parent_item:
         return
 
@@ -237,17 +238,18 @@ def process_comment(
 
 def work() -> None:
     p = Persistence()
-    max_item = requests.get(
+    session = requests.Session()
+    max_item = session.get(
         "https://hacker-news.firebaseio.com/v0/maxitem.json",
         timeout=60,
     ).json()
     next_item = p.get_current_item() + 1
     print(f"Max item is {max_item}.")
     while next_item <= max_item:
-        print(f"Getting {next_item}/{max_item} ({max_item-next_item} to go)...")
-        item = get_item(next_item)
+        print(f"Getting {next_item}/{max_item} ({max_item - next_item} to go)...")
+        item = get_item(next_item, session)
         if item and item["type"] == "comment" and item.get("text"):
-            process_comment(item, p)
+            process_comment(item, p, session)
 
         p.set_current_item(next_item)
         next_item += 1
