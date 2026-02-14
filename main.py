@@ -82,18 +82,13 @@ class Persistence:
         self._cur.fetchall()
         self._con.commit()
 
-    def set_current_item(self, current_item: int, commit: bool = True) -> None:
+    def set_current_item(self, current_item: int) -> None:
         """Set the last fetched item ID."""
         self._cur.execute(
             "INSERT INTO current_item(id, item) VALUES(1, ?) ON CONFLICT(id) DO UPDATE SET item=?;",
             [current_item, current_item],
         )
         self._cur.fetchall()
-        if commit:
-            self._con.commit()
-
-    def commit(self) -> None:
-        """Commit the current transaction."""
         self._con.commit()
 
     def get_current_item(self) -> int:
@@ -249,19 +244,18 @@ def work(session: requests.Session) -> None:
     ).json()
     next_item = p.get_current_item() + 1
     print(f"Max item is {max_item}.")
-    batch_size = 5
+    last_processed_item = next_item - 1
     while next_item <= max_item:
         print(f"Getting {next_item}/{max_item} ({max_item - next_item} to go)...")
         item = get_item(next_item, session)
         if item and item["type"] == "comment" and item.get("text"):
             process_comment(item, p, session)
 
-        # Only commit to the database every batch_size items, to avoid the
-        # overhead of a fsync on every single iteration.
-        should_commit = (next_item % batch_size == 0) or (next_item == max_item)
-        p.set_current_item(next_item, commit=should_commit)
+        last_processed_item = next_item
         next_item += 1
     print("Done.")
+    if last_processed_item >= p.get_current_item():
+        p.set_current_item(last_processed_item)
 
 
 if __name__ == "__main__":
