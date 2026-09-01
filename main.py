@@ -9,7 +9,9 @@ import traceback
 from pprint import pprint
 from typing import Any
 from typing import Dict
+from typing import List
 from typing import Optional
+from typing import Tuple
 
 import requests
 from dotenv import load_dotenv
@@ -22,6 +24,7 @@ load_dotenv()
 
 TOKEN = os.getenv("TELEGRAM_TOKEN", "")
 WEBHOOK_SECRET = hashlib.sha256(TOKEN.encode()).hexdigest()[:10]
+DELAYED_COMMENT_TIMEOUT = 60 * 60
 
 print(f"Webhook URL: /webhook/{WEBHOOK_SECRET}/")
 
@@ -30,9 +33,9 @@ class Persistence:
     """
     The main persistent storage class.
 
-    We currently use two tables: One which stores the last item ID seen (so we can
-    process updates for newer things), and one which maps a requested username to a chat
-    ID, so we can message the chat if we see the username replied to.
+    We currently use three tables: One which stores the last item ID seen (so we can
+    process updates for newer things), one which maps a requested username to a chat ID,
+    and one which holds delayed replies until their text is available.
 
     If a chat requests a different username, the old is deleted. If two users request to
     monitor the same username, only one of them wins. This might be a bit of an issue if
@@ -48,6 +51,9 @@ class Persistence:
         )
         self._cur.execute(
             'CREATE TABLE IF NOT EXISTS "current_item" ( "id" INTEGER UNIQUE, "item" INTEGER );'
+        )
+        self._cur.execute(
+            'CREATE TABLE IF NOT EXISTS "pending_comments" ( "comment_id" INTEGER PRIMARY KEY, "parent_id" INTEGER, "chat_id" INTEGER, "first_seen" INTEGER );'
         )
         self._cur.execute(
             'CREATE INDEX IF NOT EXISTS "username" ON "user_to_chat" ( "username" );'
@@ -109,6 +115,42 @@ class Persistence:
             return max_item
         else:
             return result[0]
+
+    def add_pending_comment(
+        self, comment_id: int, parent_id: int, chat_id: int
+    ) -> None:
+        """Add a delayed comment without resetting its original timestamp."""
+        self._cur.execute(
+            "INSERT OR IGNORE INTO pending_comments(comment_id, parent_id, chat_id, first_seen) "
+            "VALUES(?, ?, ?, ?)",
+            [comment_id, parent_id, chat_id, int(time.time())],
+        )
+        self._cur.fetchall()
+        self._con.commit()
+
+    def get_pending_comments(self) -> List[Tuple[int, int, int, int]]:
+        """Return all delayed comments awaiting their text."""
+        self._cur.execute(
+            "SELECT comment_id, parent_id, chat_id, first_seen FROM pending_comments"
+        )
+        return self._cur.fetchall()
+
+    def delete_pending_comment(self, comment_id: int) -> None:
+        """Delete a delayed comment by ID."""
+        self._cur.execute(
+            "DELETE FROM pending_comments WHERE comment_id = ?", [comment_id]
+        )
+        self._cur.fetchall()
+        self._con.commit()
+
+    def delete_expired_pending_comments(self, timeout: int) -> None:
+        """Delete delayed comments that have been pending for the timeout."""
+        self._cur.execute(
+            "DELETE FROM pending_comments WHERE first_seen <= ?",
+            [int(time.time()) - timeout],
+        )
+        self._cur.fetchall()
+        self._con.commit()
 
 
 def send_telegram_message(chat_id: int, message: str) -> None:
@@ -184,13 +226,18 @@ def get_item(item_id: int, session: requests.Session) -> Optional[Dict[Any, Any]
     return r.json()
 
 
+def is_delayed(text: str) -> bool:
+    """Return whether an HN comment is temporarily delayed."""
+    return text.strip().lower() == "[delayed]"
+
+
 def notify_for_reply(
     chat_id: int,
     comment_id: int,
     parent_id: int,
     username: str,
     text: str,
-):
+) -> None:
     comment_text = text.replace("<p>", "\n\n")
     send_telegram_message(
         chat_id,
@@ -227,6 +274,10 @@ def process_comment(
     if not chat_id:
         return
 
+    if is_delayed(item["text"]):
+        persistence.add_pending_comment(item["id"], item["parent"], chat_id)
+        return
+
     notify_for_reply(
         chat_id,
         comment_id=item["id"],
@@ -236,8 +287,40 @@ def process_comment(
     )
 
 
+def process_pending(persistence: Persistence, session: requests.Session) -> None:
+    """Notify for delayed comments whose text has become available."""
+    persistence.delete_expired_pending_comments(DELAYED_COMMENT_TIMEOUT)
+    pending_comments = persistence.get_pending_comments()
+    if not pending_comments:
+        return
+
+    current_item = persistence.get_current_item()
+    for comment_id, parent_id, chat_id, _ in pending_comments:
+        if comment_id > current_item:
+            continue
+
+        item = get_item(comment_id, session)
+        if not item or not item.get("text") or not item.get("by"):
+            persistence.delete_pending_comment(comment_id)
+            continue
+
+        text = item["text"]
+        if is_delayed(text):
+            continue
+
+        notify_for_reply(
+            chat_id,
+            comment_id=comment_id,
+            parent_id=parent_id,
+            username=item["by"],
+            text=text,
+        )
+        persistence.delete_pending_comment(comment_id)
+
+
 def work(session: requests.Session) -> None:
     p = Persistence()
+    process_pending(p, session)
     max_item = session.get(
         "https://hacker-news.firebaseio.com/v0/maxitem.json",
         timeout=60,
