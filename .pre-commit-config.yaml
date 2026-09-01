@@ -10,6 +10,8 @@ repos:
   - id: check-toml
   - id: check-xml
   - id: check-yaml
+    # Harbormaster templates use {{ ... }}, which is not valid YAML.
+    exclude: ^docker-compose\.harbormaster\.yml$
   - id: debug-statements
   - id: end-of-file-fixer
   - id: fix-byte-order-marker
