@@ -8,6 +8,7 @@ services:
       - "8000:8000"
     environment:
       - TELEGRAM_TOKEN
+      - WEBHOOK_BASE_URL
   worker:
     command: ./main.py worker
     build: .

@@ -23,6 +23,7 @@ app = Flask(__name__)
 load_dotenv()
 
 TOKEN = os.getenv("TELEGRAM_TOKEN", "")
+WEBHOOK_BASE_URL = os.getenv("WEBHOOK_BASE_URL", "")
 WEBHOOK_SECRET = hashlib.sha256(TOKEN.encode()).hexdigest()[:10]
 DELAYED_COMMENT_TIMEOUT = 60 * 60
 
@@ -173,14 +174,34 @@ def send_telegram_message(chat_id: int, message: str) -> None:
         pprint(e)
 
 
-def set_webhook(url: str) -> None:
-    """Call this function to set the webhook URL."""
-    print("Setting webhook...")
-    r = requests.get(
-        f"https://api.telegram.org/bot{TOKEN}/setWebhook?url={url}",
-        timeout=60,
-    )
-    print(r.json())
+def set_webhook(base_url: str) -> None:
+    """Register the server's webhook with Telegram without blocking startup."""
+    try:
+        webhook_url = f"{base_url.rstrip('/')}/webhook/{WEBHOOK_SECRET}/"
+        # Pass the URL as a parameter so requests encodes it. Never log the
+        # response body or the exception, as both can echo the token above.
+        response = requests.get(
+            f"https://api.telegram.org/bot{TOKEN}/setWebhook",
+            params={"url": webhook_url},
+            timeout=60,
+        )
+        if response.status_code != 200:
+            print(
+                "WARNING: Webhook registration failed: "
+                f"Telegram returned HTTP {response.status_code}; starting server anyway."
+            )
+            return
+        if not response.json().get("ok"):
+            print(
+                "WARNING: Webhook registration failed: "
+                "Telegram returned ok=false; starting server anyway."
+            )
+            return
+    except Exception:
+        print("WARNING: Webhook registration failed; starting server anyway.")
+        return
+
+    print("Webhook registered.")
 
 
 #############
@@ -200,7 +221,7 @@ def webhook():
             "Welcome! To start receiving replies to your comments on HN,"
             " just tell me your HN username.",
         )
-    elif re.search(r"^\w+$", message_text):
+    elif re.search(r"^[\w-]+$", message_text):
         Persistence().set_chat_by_username(message_text, chat_id)
         send_telegram_message(
             chat_id,
@@ -358,4 +379,11 @@ if __name__ == "__main__":
                 session = requests.Session()
             time.sleep(30)
     else:
+        if not WEBHOOK_BASE_URL:
+            print(
+                "WARNING: Webhook was not registered: "
+                "WEBHOOK_BASE_URL is unset or empty."
+            )
+        else:
+            set_webhook(WEBHOOK_BASE_URL)
         app.run("0.0.0.0", port=8000)
