@@ -296,6 +296,9 @@ def process_pending(persistence: Persistence, session: requests.Session) -> None
 
     current_item = persistence.get_current_item()
     for comment_id, parent_id, chat_id, _ in pending_comments:
+        # The scan only advances current_item after a complete pass, so a pass
+        # that died partway through will revisit this comment and notify for it
+        # itself. Leave those to the scan, otherwise we notify twice.
         if comment_id > current_item:
             continue
 
