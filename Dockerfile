@@ -1,11 +1,13 @@
-FROM python:3.8-slim
-ENV PYTHONUNBUFFERED 1
+FROM python:3.13-slim
+ENV PYTHONUNBUFFERED=1
+ENV UV_PROJECT_ENVIRONMENT=/opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
-RUN pip install -U --pre pip poetry
-ADD poetry.lock /code/
+COPY --from=ghcr.io/astral-sh/uv:0.11.6 /uv /uvx /bin/
+
+ADD uv.lock /code/
 ADD pyproject.toml /code/
-RUN poetry config virtualenvs.create false
 WORKDIR /code
-RUN poetry install --no-dev --no-interaction --no-root
+RUN uv sync --frozen --no-dev
 
 COPY . /code/

@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+.git/
+.tickets/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.tox/
+.uv-cache/
