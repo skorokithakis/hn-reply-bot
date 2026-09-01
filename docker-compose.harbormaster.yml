@@ -5,7 +5,15 @@ services:
       - "27838:8000"
     volumes:
       - {{ HM_DATA_DIR }}:/state
+    # Supplied by Harbormaster's own environment/environment_file, not by a
+    # .env file. load_dotenv() searches from /code, so it never reads /state.
+    environment:
+      - TELEGRAM_TOKEN
+      - WEBHOOK_BASE_URL
   worker:
     command: bash -c "cd /state/; /code/main.py worker"
     volumes:
       - {{ HM_DATA_DIR }}:/state
+    # The worker sends messages but never registers the webhook.
+    environment:
+      - TELEGRAM_TOKEN
